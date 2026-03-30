@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: dignity_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dignity_user
+      POSTGRES_PASSWORD: dignity_password_dev
+      POSTGRES_DB: dignity_store
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dignity_user -d dignity_store"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dignity_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://dignity_user:dignity_password_dev@db:5432/dignity_store
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: dev-secret-change-in-production
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./public:/app/public
+
+volumes:
+  postgres_data:
